@@ -1,0 +1,99 @@
+{
+    "useExistingWorkspace": {
+        "type": "string",
+        "defaultValue": "yes"
+    },
+    "LogAnalyticsWorkspaceResourceID": {
+        "type": "string",
+        "defaultValue": "/subscriptions/c44249e9-ee17-4d0a-b530-f6afe565af65/resourcegroups/mongodbsentinel-rg-v1/providers/microsoft.operationalinsights/workspaces/mongodbsentinel-ws-v1",
+        "metadata": {
+            "description": "Azure Resource ID (NOT THE WORKSPACE ID) of the existing Log Analytics Workspace where you would like the MongoDB Atlas data and optional Function App Application Insights data to reside. This can be found by clicking the \"JSON View\" link within the Overview page of the Log Analytics workspace resource. The format is: \"/subscriptions/xxxxxxxx-xxxxxxxx-xxxxxxxx-xxxxxxxx-xxxxxxxx/resourcegroups/xxxxxxxx/providers/microsoft.operationalinsights/workspaces/xxxxxxxx\""
+        }
+    },
+    "newWorkspaceName": {
+        "type": "string", "defaultValue": "" 
+    },
+    "ConnectorSchedule": {
+        "type": "string",
+        "defaultValue": "0 */5 * * * *",
+        "metadata": {
+            "description": "The polling schedule at which logs will be uploaded from MongoDB Atlas into the Log Analytics workspace"
+        }
+    },
+    "MongoDbGroupId": {
+        "type": "string",
+        "defaultValue": "651be79c2195741017f66249",
+        "metadata": {
+            "description": "The MongoDB Atlas Group Id to which you will connect."
+        }
+    },
+    "MongoDbClusterId": {
+        "type": "string",
+        "defaultValue": "healthcaredemo-shard-00-02.9otnd.mongodb.net",
+        "metadata": {
+            "description": "The MongoDB Atlas Cluster Id to which you will connect."
+        }
+    },
+    "MongoDbClientId": {
+        "type": "string",
+        "defaultValue": "mdb_sa_id_6877ea8c01fbe77a8093af4f",
+        "metadata": {
+            "description": "The MongoDB Atlas client id which you can obtain from their portal."
+        }
+    },
+    "MongoDbClientSecret": {
+        "type": "securestring",
+        "metadata": {
+            "description": "The MongoDB Atlas client secret which you can obtain from their portal."
+        }
+    },
+    "packageUri": {
+        "type": "string",
+        "defaultValue": "https://sazmdbazipdeploy.blob.core.windows.net/deployments/MongoDBAtlasLogs.zip?sp=r&st=2025-09-04T18:54:32Z&se=2026-09-05T03:09:32Z&spr=https&sv=2024-11-04&sr=b&sig=wiw09H1Qe6sOlv48Tz%2F4VQOZXLW6V82CJGR%2FAgqxMzA%3D",
+        "metadata": {
+            "description": "The URL of the zip file containing the Python function code"
+        }
+    },
+    "includeAccessLogs": {
+        "type": "bool",
+        "defaultValue": true,
+        "metadata": {
+            "description": "A category for which the log entries will be uploaded to Microsoft Sentinel. At least one category is required from ACCESS, NETWORK, QUERY."
+        }
+    },
+    "accessIdFilterList": {
+        "type": "string",
+        "defaultValue": "",
+        "metadata": {
+            "description": "Comma separated list of Access IDs (Max 10) for which the log entries will be uploaded to Microsoft Sentinel. An empty list not filter out any log entries."
+        }
+    },
+    "includeNetworkLogs": {
+        "type": "bool",
+        "defaultValue": true,
+        "metadata": {
+            "description": "A category for which the log entries will be uploaded to Microsoft Sentinel. At least one category is required from ACCESS, NETWORK, QUERY."
+        }
+    },
+    "networkIdFilterList": {
+        "type": "string",
+        "defaultValue": "",
+        "metadata": {
+            "description": "Comma separated list of Network IDs (Max 10) for which the log entries will be uploaded to Microsoft Sentinel. An empty list not filter out any log entries."
+        }
+    },
+    "includeQueryLogs": {
+        "type": "bool",
+        "defaultValue": true,
+        "metadata": {
+            "description": "A category for which the log entries will be uploaded to Microsoft Sentinel. At least one category is required from ACCESS, NETWORK, QUERY."
+        }
+    },
+    "queryIdFilterList": {
+        "type": "string",
+        "defaultValue": "",
+        "metadata": {
+            "description": "Comma separated list of Network IDs (Max 10) for which the log entries will be uploaded to Microsoft Sentinel. An empty list not filter out any log entries."
+        }
+    }
+}
