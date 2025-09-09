@@ -97,17 +97,21 @@
         "location": "[resourceGroup().location]",
         "roleIdOwner": "/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
         "roleIdStorageBlobDataOwner": "/providers/Microsoft.Authorization/roleDefinitions/b7e6dc6d-f1e8-4753-8033-0f276bb0955b",
+        "roleIdMonitoringMetricsPublisher": "/providers/Microsoft.Authorization/roleDefinitions/3913510d-42f4-4e42-8a64-420c390055eb",
+        "roleIdKeyVaultSecretsUser": "/providers/Microsoft.Authorization/roleDefinitions/4633458b-17de-408a-b874-0445c86b69e6",
         "storageSuffix": "[environment().suffixes.storage]",
         "FunctionAppName": "[format('fa-mdba-{0}', uniqueString(resourceGroup().id))]",
         "KeyVaultName": "[format('kv-mdba-{0}', uniqueString(resourceGroup().id))]",
         "StorageAccountName": "[format('samdba{0}', uniqueString(resourceGroup().id))]",
         "FunctionAppStorageAccountName": "[format('safamdba{0}', uniqueString(resourceGroup().id))]",
         "DataCollectionEndpointName": "[format('dce-mdba-{0}', uniqueString(resourceGroup().id))]",
-        "DataCollectionRuleName": "[format('dcr-mdba-{0}', uniqueString(resourceGroup().id))]"
+        "DataCollectionRuleName": "[format('dcr-mdba-{0}', uniqueString(resourceGroup().id))]",
+        "MongoKVName": "mongosecretkv",
+        "MongoDBClientSecretName": "MongoDBClientSecret"
+        // "MongoKVRoleAssignmentName": "[guid(resourceId('Microsoft.KeyVault/vaults', variables('MongoKVName')), variables('roleIdKeyVaultSecretsUser'), format('uami-{0}-arm', variables('FunctionAppName'), deployment().name))]"
     },
     "resources": [
         {
-            "condition": "[or(parameters('includeAccessLogs'), parameters('includeNetworkLogs'), parameters('includeQueryLogs'))]",
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2022-09-01",
             "name": "provisionWorkspace",
@@ -154,8 +158,9 @@
                     },
                     "variables": {
                         "workspaceName": "[if(equals(parameters('useExistingWorkspace'),'yes'), last(split(parameters('LogAnalyticsWorkspaceResourceId'), '/')), parameters('newWorkspaceName'))]"
-                    },
+                     },
                     "resources": [
+                        // If creating new workspace
                         {
                             "condition": "[equals(parameters('useExistingWorkspace'), 'no')]",
                             "type": "Microsoft.OperationalInsights/workspaces",
@@ -194,14 +199,12 @@
             }
         },
         {
-            "condition": "[or(parameters('includeAccessLogs'), parameters('includeNetworkLogs'), parameters('includeQueryLogs'))]",
             "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
             "apiVersion": "2023-01-31",
             "name": "[format('uami-{0}', variables('FunctionAppName'))]",
             "location": "[variables('location')]"
         },
         {
-            "condition": "[or(parameters('includeAccessLogs'), parameters('includeNetworkLogs'), parameters('includeQueryLogs'))]",
             "type": "Microsoft.Storage/storageAccounts",
             "apiVersion": "2023-05-01",
             "name": "[variables('StorageAccountName')]",
@@ -224,7 +227,6 @@
             ]
         },
         {
-            "condition": "[or(parameters('includeAccessLogs'), parameters('includeNetworkLogs'), parameters('includeQueryLogs'))]",
             "type": "Microsoft.KeyVault/vaults",
             "apiVersion": "2023-07-01",
             "name": "[variables('KeyVaultName')]",
@@ -260,7 +262,6 @@
             ]
         },
         {
-            "condition": "[or(parameters('includeAccessLogs'), parameters('includeNetworkLogs'), parameters('includeQueryLogs'))]",
             "type": "Microsoft.Authorization/roleAssignments",
             "apiVersion": "2022-04-01",
             "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
@@ -316,7 +317,6 @@
             }
         },
         {
-            "condition": "[or(parameters('includeAccessLogs'), parameters('includeNetworkLogs'), parameters('includeQueryLogs'))]",
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2022-09-01",
             "name": "createCustomTables",
@@ -334,6 +334,8 @@
                         "value": "[variables('location')]"
                     },
                     "LogAnalyticsWorkspaceResourceId": {
+                        // TODO Change me
+                        // "value": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('LogAnalyticsWorkspaceResourceID'), '/')[2], split(parameters('LogAnalyticsWorkspaceResourceID'), '/')[4]), 'Microsoft.OperationalInsights/workspaces', split(parameters('LogAnalyticsWorkspaceResourceID'), '/')[8])]"
                         "value": "[reference(resourceId('Microsoft.Resources/deployments', 'provisionWorkspace'), '2022-09-01').outputs.workspaceResourceId.value]"
                     },
                     "DataCollectionEndpointName": {
@@ -385,7 +387,7 @@
                         }
                         },
                     "variables": {
-                        "roleIdMonitoringMetricsPublisher": "/providers/Microsoft.Authorization/roleDefinitions/3913510d-42f4-4e42-8a64-420c390055eb"
+                        "roleDefId": "/providers/Microsoft.Authorization/roleDefinitions/3913510d-42f4-4e42-8a64-420c390055eb" // roleIdMonitoringMetricsPublisher
                     },
                     "resources": [
                         {
@@ -516,9 +518,9 @@
                             "type": "Microsoft.Authorization/roleAssignments",
                             "apiVersion": "2022-04-01",
                             "scope": "[format('Microsoft.Insights/dataCollectionRules/{0}', parameters('DataCollectionRuleName'))]",
-                            "name": "[guid(resourceId('Microsoft.Insights/dataCollectionRules', parameters('DataCollectionRuleName')), variables('roleIdMonitoringMetricsPublisher'), parameters('ServicePrincipalId'))]",
+                            "name": "[guid(resourceId('Microsoft.Insights/dataCollectionRules', parameters('DataCollectionRuleName')), variables('roleDefId'), parameters('ServicePrincipalId'))]",
                             "properties": {
-                                "roleDefinitionId": "[variables('roleIdMonitoringMetricsPublisher')]",
+                                "roleDefinitionId": "[variables('roleDefId')]",
                                 "principalId": "[parameters('ServicePrincipalId')]",
                                 "principalType": "ServicePrincipal"
                             },
@@ -612,7 +614,6 @@
             }
         },
         {
-            "condition": "[or(parameters('includeAccessLogs'), parameters('includeNetworkLogs'), parameters('includeQueryLogs'))]",
             "type": "Microsoft.Web/serverfarms",
             "apiVersion": "2024-04-01",
             "name": "[variables('FunctionAppName')]",
@@ -622,11 +623,10 @@
             },
             "kind": "linux",
             "properties": {
-                "reserved": true
+                "reserved": true // for linux
             }
         },
         {
-            "condition": "[or(parameters('includeAccessLogs'), parameters('includeNetworkLogs'), parameters('includeQueryLogs'))]",
             "type": "Microsoft.Insights/components",
             "apiVersion": "2020-02-02",
             "name": "[format('appInsights-{0}', variables('FunctionAppName'))]",
@@ -642,7 +642,6 @@
             ]
         },
         {
-            "condition": "[or(parameters('includeAccessLogs'), parameters('includeNetworkLogs'), parameters('includeQueryLogs'))]",
             "type": "Microsoft.Storage/storageAccounts",
             "apiVersion": "2023-01-01",
             "name": "[variables('FunctionAppStorageAccountName')]",
@@ -654,7 +653,6 @@
             "properties": {}
         },
         {
-            "condition": "[or(parameters('includeAccessLogs'), parameters('includeNetworkLogs'), parameters('includeQueryLogs'))]",
             "type": "Microsoft.Web/sites",
             "apiVersion": "2024-04-01",
             "name": "[variables('FunctionAppName')]",
@@ -676,128 +674,131 @@
                 "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('FunctionAppName'))]",
                 "httpsOnly": true,
                 "functionsExtensionVersion": "~4",
+                "minTlsVersion": "1.2",
+                "ftpsState": "Disabled",
+                "http20Enabled": true,
+                "alwaysOn": true,
+                "publicNetworkAccess": "Enabled",
+                "cors": {
+                    "allowedOrigins": [
+                    "https://portal.azure.com"
+                    ]
+                },
                 "siteConfig": {
-                    "linuxFxVersion": "PYTHON|3.11",
-                    "appSettings": [
-                        {
-                            "name": "APPINSIGHTS_INSTRUMENTATIONKEY", 
-                            "value": "[reference(resourceId('Microsoft.Insights/components', format('appInsights-{0}', variables('FunctionAppName'))), '2020-02-02').InstrumentationKey]"
-                        },
-                        {
-                            "name": "APPLICATIONINSIGHTS_CONNECTION_STRING", 
-                            "value": "[reference(resourceId('Microsoft.Insights/components', format('appInsights-{0}', variables('FunctionAppName'))), '2020-02-02').ConnectionString]"
-                        },
-                        {
-                            "name": "AzureWebJobsStorage", 
-                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', toLower(variables('FunctionAppStorageAccountName')),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', toLower(variables('FunctionAppStorageAccountName'))), '2022-09-01').keys[0].value, ';EndpointSuffix=',toLower(variables('storageSuffix')))]"
-                        },
-                        {
-                            "name": "AZURE_MAIN_STORAGE", 
-                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', toLower(variables('StorageAccountName')),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', toLower(variables('StorageAccountName'))), '2022-09-01').keys[0].value, ';EndpointSuffix=',toLower(variables('storageSuffix')))]"
-                        },
-                        {
-                            "name": "DCE_ENDPOINT", 
-                            "value": "[reference('createCustomTables').outputs.DceUri.value]"
-                        },
-                        {
-                            "name": "FUNCTIONS_EXTENSION_VERSION", 
-                            "value": "~4"
-                        },
-                        {
-                            "name": "FUNCTIONS_WORKER_RUNTIME", 
-                            "value": "python"
-                        },
-                        {
-                            "name": "DCR_IMMUTABLEID",
-                            "value": "[reference('createCustomTables').outputs.DcrImmutableId.value]"
-                        },
-                        {
-                            "name": "STREAM_NAME",
-                            "value": "Custom-MDBALogTable_CL"
-                        },
-                        {
-                            "name": "SCM_DO_BUILD_DURING_DEPLOYMENT",
-                            "value": "true"
-                        },
-                        {
-                            "name": "ENABLE_ORYX_BUILD",
-                            "value": "true"
-                        },
-                        {
-                            "name": "Schedule",
-                            "value": "[parameters('ConnectorSchedule')]"
-                        },
-                        {
-                            "name": "AZURE_TENANT_ID", 
-                            "value": "[subscription().tenantId]"
-                        },
-                        {
-                            "name": "AZURE_CLIENT_ID",
-                            "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('uami-{0}', variables('FunctionAppName'))), '2023-01-31').clientId]"
-                        },
-                        {
-                            "name": "MDBA_CLIENT_ID",
-                            "value": "[parameters('MongoDbClientId')]"
-                        },
-                        {
-                            "name": "MDBA_CLIENT_SECRET",
-                            "value": "[parameters('MongoDbClientSecret')]"
-                        },
-                        {
-                            "name": "MDBA_GROUP_ID",
-                            "value": "[parameters('MongoDbGroupId')]"
-                        },
-                        {
-                            "name": "MDBA_CLUSTER_ID",
-                            "value": "[parameters('MongoDbClusterId')]"
+                        "linuxFxVersion": "PYTHON|3.11"
+                        "appSettings": [
 
-                        },
-                        {
-                            "name": "MDBA_INCLUDE_ACCESS_LOGS",
-                            "value": "[parameters('includeAccessLogs')]"
-
-                        },
-                        {
-                            "name": "MDBA_ACCESS_LIST",
-                            "value": "[parameters('accessIdFilterList')]"
-
-                        },
-                        {
-                            "name": "MDBA_INCLUDE_NETWORK_LOGS",
-                            "value": "[parameters('includeNetworkLogs')]"
-
-                        },
-                        {
-                            "name": "MDBA_NETWORK_LIST",
-                            "value": "[parameters('networkIdFilterList')]"
-
-                        },
-                        {
-                            "name": "MDBA_INCLUDE_QUERY_LOGS",
-                            "value": "[parameters('includeQueryLogs')]"
-
-                        },
-                        {
-                            "name": "MDBA_QUERY_LIST",
-                            "value": "[parameters('queryIdFilterList')]"
-
-                        }
-                    ],
-                    "minTlsVersion": "1.2",
-                    "ftpsState": "Disabled",
-                    "http20Enabled": true,
-                    "alwaysOn": true,
-                    "publicNetworkAccess": "Enabled",
-                    "cors": {
-                        "allowedOrigins": [
-                        "https://portal.azure.com"
                         ]
+                }
+            },
+            "resources": [
+                {
+                    "apiVersion": "2022-03-01",
+                    "type": "config",
+                    "name": "appsettings",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Web/sites/', variables('FunctionAppName'))]",
+                        "[resourceId('Microsoft.KeyVault/vaults/', variables('MongoKVName'))]",
+                        "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('MongoKVName'), variables('MongoDBClientSecretName'))]"
+                    ],
+                    "properties": {
+                        "appSettings": [
+                            {
+                                "name": "SCM_DO_BUILD_DURING_DEPLOYMENT",
+                                "value": "true"
+                            },
+                            {
+                                "name": "ENABLE_ORYX_BUILD",
+                                "value": "true"
+                            }
+                        ],
+                        "FUNCTIONS_EXTENSION_VERSION": "~4",
+                        "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(resourceId('Microsoft.Insights/components', format('appInsights-{0}', variables('FunctionAppName'))), '2020-02-02').InstrumentationKey]",
+                        "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference(resourceId('Microsoft.Insights/components', format('appInsights-{0}', variables('FunctionAppName'))), '2020-02-02').ConnectionString]",
+                        "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', toLower(variables('FunctionAppStorageAccountName')),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', toLower(variables('FunctionAppStorageAccountName'))), '2022-09-01').keys[0].value, ';EndpointSuffix=',toLower(variables('storageSuffix')))]",
+                        "AZURE_MAIN_STORAGE": "[concat('DefaultEndpointsProtocol=https;AccountName=', toLower(variables('StorageAccountName')),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', toLower(variables('StorageAccountName'))), '2022-09-01').keys[0].value, ';EndpointSuffix=',toLower(variables('storageSuffix')))]",
+                        "DCE_ENDPOINT": "[reference('createCustomTables').outputs.DceUri.value]",
+                        "FUNCTIONS_WORKER_RUNTIME": "python",
+                        "DCR_IMMUTABLEID": "[reference('createCustomTables').outputs.DcrImmutableId.value]",
+                        "STREAM_NAME": "Custom-MDBALogTable_CL",
+                        "Schedule": "[parameters('ConnectorSchedule')]",
+                        "AZURE_TENANT_ID": "[subscription().tenantId]",
+                        "AZURE_CLIENT_ID": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('uami-{0}', variables('FunctionAppName'))), '2023-01-31').clientId]",
+                        "MDBA_CLIENT_ID": "[parameters('MongoDbClientId')]",
+                        "MDBA_CLIENT_SECRET": "[parameters('MongoDbClientSecret')]",
+                        "MDBA_GROUP_ID": "[parameters('MongoDbGroupId')]",
+                        "MDBA_CLUSTER_ID": "[parameters('MongoDbClusterId')]",
+                        "KEY_VAULT_MDBA_CLIENT_SECRET_SETTING": "[concat('@Microsoft.KeyVault(SecretUri=', reference(variables('MongoDBClientSecretName')).secretUriWithVersion, ')')]"
                     }
                 }
-            }
+            ]
         },
         {
-            "condition": "[or(parameters('includeAccessLogs'), parameters('includeNetworkLogs'), parameters('includeQueryLogs'))]",
+            "type": "Microsoft.KeyVault/vaults",
+            "apiVersion": "2022-07-01",
+            "name": "[variables('MongoKVName')]",
+            "location": "[variables('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('uami-{0}', variables('FunctionAppName')))]"
+                // "[resourceId('Microsoft.Web/sites', variables('FunctionAppName'))]"
+            ],
+            "properties": {
+                "sku": {
+                    "family": "A",
+                    "name": "standard"
+                },
+                "tenantId": "[subscription().tenantId]",
+                "accessPolicies": [
+                    {
+                        "tenantId": "[subscription().tenantId]",
+                        "objectId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('uami-{0}', variables('FunctionAppName'))), '2023-01-31').principalId]",
+                        // "objectId": "[reference(resourceId('Microsoft.Web/sites', variables('FunctionAppName')),'2022-03-01', 'full').identity.principalId]",
+                        "permissions": {
+                            "secrets": [ 
+                                "get",
+                                "list"
+                            ]
+                        }
+                    }
+                ],
+                "enabledForDeployment": false,
+                "enabledForDiskEncryption": false,
+                "enabledForTemplateDeployment": true,
+                "enableSoftDelete": true
+            },
+            "resources": [
+                {
+                    "type": "secrets",
+                    "apiVersion": "2022-07-01",
+                    "name": "[variables('MongoDBClientSecretName')]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.KeyVault/vaults/', variables('MongoKVName'))]"
+                    ],
+                    "properties": {
+                        "value": "[parameters('MongoDbClientSecret')]",
+                        "contentType": "string",
+                        "attributes": {
+                            "enabled": true
+                        }
+                    }
+                }
+            ]
+        },
+        // {
+        //     "type": "Microsoft.Authorization/roleAssignments",
+        //     "apiVersion": "2022-04-01",
+        //     "scope": "[resourceId('Microsoft.KeyVault/vaults', variables('MongoKVName'))]",
+        //     "name": "[variables('MongoKVRoleAssignmentName')]",
+        //     "properties": {
+        //         "roleDefinitionId": "[variables('roleIdKeyVaultSecretsUser')]",
+        //         "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('uami-{0}', variables('FunctionAppName'))), '2023-01-31').principalId]",
+        //         "principalType": "ServicePrincipal"
+        //     },
+        //     "dependsOn": [
+        //         "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('uami-{0}', variables('FunctionAppName')))]"
+        //     ]
+        // },
+        {
             "type": "Microsoft.Web/sites/extensions",
             "apiVersion": "2021-02-01",
             "name": "[format('{0}/zipdeploy', variables('FunctionAppName'))]",
